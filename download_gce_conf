@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+# Check that argument 1 is present otherwise print usage
+if [ -z "$1" ]; then
+    echo "Usage: $0 <username>"
+    exit
+fi
+
+username=$1
+
+while true; do
+
+    rsync -Pave ssh $username@memorici.de:gce.$username.config ~/.ssh/gce.$username.config
+
+    # Check that `gce.$username.config` is Included in `~/.ssh/config`
+    if ! grep -q "gce.$username.config" ~/.ssh/config; then
+        echo "Please add line 'Include gce.$username.config' at THE BEGINNING of our ~/.ssh/config"
+    fi
+
+    sleep 5
+
+done
