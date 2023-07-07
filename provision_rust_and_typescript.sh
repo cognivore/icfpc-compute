@@ -17,11 +17,13 @@ rm rustup.sh
 echo "************ Upgrading the system and installing system dependencies"
 
 sudo apt update
-sudo apt install -y build-essential
-sudo apt install -y lld
-sudo apt install -y pkg-config libssl-dev
+sudo apt install -y build-essential || echo "build-essential already installed"
+sudo apt install -y lld || echo "lld already installed"
+sudo apt install -y pkg-config libssl-dev || echo "pkg-config libssl-dev already installed"
+
+echo "************ Installing npm"
+
+sudo apt install -y npm || echo "npm already installed"
 
 echo "************ Installing typescript"
-
-sudo apt install -y npm
 sudo npm install -g typescript@latest
