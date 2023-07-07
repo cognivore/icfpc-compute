@@ -13,6 +13,8 @@ hosts=(icfpc icfpc-fi)
 # For each host and for each user do the following:
 # 1. Create user `sudo useradd -m -s /bin/bash -G sudo <username>`
 # 2. Add user's ssh key to `~/.ssh/authorized_keys`
+# 3. Run `./provision_rust_and_typescript.sh` as the user at the remote
+# 4. Allow NOPASSWD command invocation for the user
 for host in "${hosts[@]}"; do
   while read -r username key; do
     echo "Adding user $username to $host"
@@ -20,9 +22,20 @@ for host in "${hosts[@]}"; do
     ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo useradd -m -s /bin/bash -G sudo $username" 2>/dev/null
     ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo mkdir -p /home/$username/.ssh" 2>/dev/null
     ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo bash -c 'echo $key > /home/$username/.ssh/authorized_keys'" 2>/dev/null
+    public_key=$(cat ~/.ssh/id_ed25519.pub)
+    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo bash -c 'echo $public_key >> /home/$username/.ssh/authorized_keys'" 2>/dev/null
     # Now chmod 700 /home/$username/.ssh and chmod 600 /home/$username/.ssh/authorized_keys
     ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo chmod 700 /home/$username/.ssh" 2>/dev/null
     ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo chown -R $username:$username /home/$username/.ssh" 2>/dev/null
+    # Now we need to enable NOPASSWD for the user
+    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo bash -c 'echo \"$username ALL=(ALL) NOPASSWD:ALL\" >> /etc/sudoers'" 2>/dev/null
+    # Now install all the needed dependencies via ./provision_rust_and_typescript.sh on the remote
+    # First copy the script.
+    echo "Sending installer script"
+    rsync -Pave ssh ./provision_rust_and_typescript.sh $username@$host: 2>/dev/null
+    # Now run it as the user
+    echo "Provisioning rust and typescript"
+    ssh -n $username@$host "bash -s < /home/$username/provision_rust_and_typescript.sh" 2>/dev/null
   done < users
 done
 
