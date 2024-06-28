@@ -19,4 +19,4 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKb5AbpG8brcZsMm6iiWgdgq9YSE7Y1sJ6Piz42amB/x
 
 # For sysadmin
 
-./provision_users.sh && ./start_all.sh
+./start_all.sh && ./provision_users.sh

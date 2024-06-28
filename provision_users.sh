@@ -7,8 +7,19 @@
 # pavel ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK0QFhecujvrFZHQzCpxwkL+XYXo3G2XFF064u9KUN3V pavel
 # vlad ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDalZDKboAxWB3pxMR3865i+P+L1bSu8DCTuJ2HOXC8E vlad
 
-# Hosts: icfpc, icfpc-fi
-hosts=(instance-20240628-111438)
+# GCLOUD OUTPUT:
+# λ gcloud compute instances list
+# NAME             ZONE             MACHINE_TYPE     PREEMPTIBLE  INTERNAL_IP  EXTERNAL_IP  STATUS
+# icfpc-hel        us-central1-a    n2d-highcpu-128  true         10.128.0.9                TERMINATED
+# icfpc-leviathan  us-central1-a    n2d-highcpu-128  true         10.128.0.8                TERMINATED
+# icfpc-32-1       europe-north1-a  n2d-highcpu-32   true         10.166.0.4                TERMINATED
+# icfpc-32-2       europe-north1-a  n2d-highcpu-32   true         10.166.0.5                TERMINATED
+# icfpc-komodo     europe-north1-a  n2d-highcpu-128  true         10.166.0.7                TERMINATED
+
+hosts=(icfpc-32-1 icfpc-32-2 icfpc-hel icfpc-komodo icfpc-leviathan)
+
+repo="git@github.com:Vlad-Shcherbina/icfpc2024-tbd.git"
+project_dir="icfpc2024-tbd"
 
 # For each host and for each user do the following:
 # 1. Create user `sudo useradd -m -s /bin/bash -G sudo <username>`
@@ -29,7 +40,6 @@ for host in "${hosts[@]}"; do
         echo "User $username already exists on $host"
         # continue
     fi
-
 
     ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo useradd -m -s /bin/bash -G sudo $username" 2>/dev/null
     ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo mkdir -p /home/$username/.ssh" 2>/dev/null
@@ -54,32 +64,10 @@ for host in "${hosts[@]}"; do
       ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "bash -c 'echo \"eval \\\"\\\$(direnv hook bash)\\\"\" >> /home/$username/.bashrc'" 2>/dev/null
     fi
 
+    [ -d /tmp/repo ] && (cd /tmp/repo && git pull) || (git clone "$repo" /tmp/repo && cd /tmp/repo && echo -e '#!/bin/sh\n\nexec git_hooks/pre-push "$@"' > .git/hooks/pre-push && chmod +x .git/hooks/pre-push && cd -)
+    rsync -avz --filter=':- .gitignore' -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /tmp/repo/ "$username@$host:/home/$username/repo/$project_dir"
+    # Direnv allow
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "bash -c 'source /etc/profile && source /home/$username/.bashrc && direnv --version && cd /home/$username/repo/$project_dir && direnv allow && nix develop . --command cargo test && nix develop . --command tsc'"
+
   done < users
 done
-
-# Finally, add a user without sudo rights to memorici.de
-# And add `~/.ssh/id_ed25519.pub` to `~/.ssh/authorized_keys` on remote
-while read -r username key; do
-  echo "- - - Adding user $username to memorici.de"
-  echo "- - - Key: $key"
-
-    echo "Checking if the user exists"
-    doesUserExist=$(ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "if id -u \"$username\" > /dev/null 2>&1; then echo 'ok'; else echo ''; fi")
-    if [ -n "$doesUserExist" ]; then
-        echo "User $username already exists on memorici.de"
-        continue
-    fi
-
-  ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo useradd -m -s /bin/bash $username" 2>/dev/null
-  ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo mkdir -p /home/$username/.ssh" 2>/dev/null
-  # Add the customer's key to `~/.ssh/authorized_keys` on remote
-  ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo bash -c 'echo $key > /home/$username/.ssh/authorized_keys'" 2>/dev/null
-  # Add `~/.ssh/id_ed25519.pub` to `~/.ssh/authorized_keys` on remote
-  public_key=$(cat ~/.ssh/id_ed25519.pub)
-  ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo bash -c 'echo $public_key >> /home/$username/.ssh/authorized_keys'" 2>/dev/null
-  public_key='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKb5AbpG8brcZsMm6iiWgdgq9YSE7Y1sJ6Piz42amB/x sweater@conflagrate-wsl'
-  ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo bash -c 'echo $public_key >> /home/$username/.ssh/authorized_keys'" 2>/dev/null
-  # Now chmod 700 /home/$username/.ssh and chmod 600 /home/$username/.ssh/authorized_keys
-  ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo chmod 700 /home/$username/.ssh" 2>/dev/null
-  ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo chown -R $username:$username /home/$username/.ssh" 2>/dev/null
-done < users

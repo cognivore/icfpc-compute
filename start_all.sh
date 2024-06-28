@@ -1,12 +1,24 @@
 #!/usr/bin/env bash
 
 # GCLOUD OUTPUT:
-# NAME      ZONE             MACHINE_TYPE     PREEMPTIBLE  INTERNAL_IP  EXTERNAL_IP   STATUS
-# icfpc     us-central1-a    n2d-standard-96  true         10.128.0.3                 TERMINATED
-# icfpc-fi  europe-north1-a  n2d-standard-32  true         10.166.0.2   34.88.22.167  RUNNING
+# λ gcloud compute instances list
+# NAME             ZONE             MACHINE_TYPE     PREEMPTIBLE  INTERNAL_IP  EXTERNAL_IP  STATUS
+# icfpc-hel        us-central1-a    n2d-highcpu-128  true         10.128.0.9                TERMINATED
+# icfpc-leviathan  us-central1-a    n2d-highcpu-128  true         10.128.0.8                TERMINATED
+# icfpc-32-1       europe-north1-a  n2d-highcpu-32   true         10.166.0.4                TERMINATED
+# icfpc-32-2       europe-north1-a  n2d-highcpu-32   true         10.166.0.5                TERMINATED
+# icfpc-komodo     europe-north1-a  n2d-highcpu-128  true         10.166.0.7                TERMINATED
 
-# Start instance-20240628-111438 in zone europe-west2-c:
-gcloud compute instances start instance-20240628-111438 --zone europe-west2-c
+# Start all instances
+gcloud compute instances start icfpc-hel --zone us-central1-a
+gcloud compute instances start icfpc-leviathan --zone us-central1-a
+gcloud compute instances start icfpc-32-1 --zone europe-north1-a
+gcloud compute instances start icfpc-32-2 --zone europe-north1-a
+gcloud compute instances start icfpc-komodo --zone europe-north1-a
+
+gce_user="$(cat ./gce_user)"
+./mk_gce "$gce_user"
+cp "./gce.$gce_user.config" ~/.ssh/gce.config
 
 # Generate ssh config for each user from users file using script `mk_gce <username>`.
 # Then upload it to username@memoirici.de:
@@ -17,6 +29,29 @@ gcloud compute instances start instance-20240628-111438 --zone europe-west2-c
 # pavel ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK0QFhecujvrFZHQzCpxwkL+XYXo3G2XFF064u9KUN3V pavel
 # vlad ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDalZDKboAxWB3pxMR3865i+P+L1bSu8DCTuJ2HOXC8E vlad
 while read -r username ssh_key; do
+  echo "- - - Adding user $username to memorici.de"
+  echo "- - - Key: $key"
+
+    echo "Checking if the user exists"
+    doesUserExist=$(ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "if id -u \"$username\" > /dev/null 2>&1; then echo 'ok'; else echo ''; fi")
+    if [ -n "$doesUserExist" ]; then
+        echo "User $username already exists on memorici.de"
+        continue
+    fi
+
+    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo useradd -m -s /bin/bash $username" 2>/dev/null
+    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo mkdir -p /home/$username/.ssh" 2>/dev/null
+    # Add the customer's key to `~/.ssh/authorized_keys` on remote
+    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo bash -c 'echo $key > /home/$username/.ssh/authorized_keys'" 2>/dev/null
+    # Add `~/.ssh/id_ed25519.pub` to `~/.ssh/authorized_keys` on remote
+    public_key=$(cat ~/.ssh/id_ed25519.pub)
+    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo bash -c 'echo $public_key >> /home/$username/.ssh/authorized_keys'" 2>/dev/null
+    public_key='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKb5AbpG8brcZsMm6iiWgdgq9YSE7Y1sJ6Piz42amB/x sweater@conflagrate-wsl'
+    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo bash -c 'echo $public_key >> /home/$username/.ssh/authorized_keys'" 2>/dev/null
+    # Now chmod 700 /home/$username/.ssh and chmod 600 /home/$username/.ssh/authorized_keys
+    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo chmod 700 /home/$username/.ssh" 2>/dev/null
+    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo chown -R $username:$username /home/$username/.ssh" 2>/dev/null
+
     ./mk_gce "$username"
     rsync -Pave ssh "gce.$username.config" $username@memorici.de:
 done < users
