@@ -8,7 +8,7 @@
 # vlad ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDalZDKboAxWB3pxMR3865i+P+L1bSu8DCTuJ2HOXC8E vlad
 
 # Hosts: icfpc, icfpc-fi
-hosts=(icfpc icfpc-fi)
+hosts=(instance-20240628-111438)
 
 # For each host and for each user do the following:
 # 1. Create user `sudo useradd -m -s /bin/bash -G sudo <username>`
@@ -18,8 +18,17 @@ hosts=(icfpc icfpc-fi)
 # 5. Copy installer.sh to the host
 for host in "${hosts[@]}"; do
   while read -r username key; do
-    echo "Adding user $username to $host"
-    echo "Key: $key"
+    echo "- - - Adding user $username to $host"
+    echo "- - - Key: $key"
+
+    echo "Checking if the user exists"
+    doesUserExist=$(ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "if id -u \"$username\" > /dev/null 2>&1; then echo 'ok'; else echo ''; fi")
+    if [ -n "$doesUserExist" ]; then
+        echo "User $username already exists on $host"
+        # continue
+    fi
+
+
     ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo useradd -m -s /bin/bash -G sudo $username" 2>/dev/null
     ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo mkdir -p /home/$username/.ssh" 2>/dev/null
     ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo bash -c 'echo $key > /home/$username/.ssh/authorized_keys'" 2>/dev/null
@@ -32,6 +41,7 @@ for host in "${hosts[@]}"; do
     ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo chown -R $username:$username /home/$username/.ssh" 2>/dev/null
     # Now we need to enable NOPASSWD for the user
     ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo bash -c 'echo \"$username ALL=(ALL) NOPASSWD:ALL\" >> /etc/sudoers'" 2>/dev/null
+
     # Finally, since we're using `nix`, add 'eval "$(direnv hook bash)"' to `~/.bashrc`
     ## First check if the hook is already in .bashrc
     is_hook_present=$(ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo bash -c 'grep \"eval \\\"\\\$(direnv hook bash)\\\"\" /home/$username/.bashrc'" 2>/dev/null)
@@ -40,6 +50,7 @@ for host in "${hosts[@]}"; do
       echo "Adding hook to .bashrc"
       ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo bash -c 'echo \"eval \\\"\\\$(direnv hook bash)\\\"\" >> /home/$username/.bashrc'" 2>/dev/null
     fi
+
   done < users
   rsync -Pave "ssh" installer.sh "$host":
 done
@@ -47,8 +58,16 @@ done
 # Finally, add a user without sudo rights to memorici.de
 # And add `~/.ssh/id_ed25519.pub` to `~/.ssh/authorized_keys` on remote
 while read -r username key; do
-  echo "Adding user $username to memorici.de"
-  echo "Key: $key"
+  echo "- - - Adding user $username to memorici.de"
+  echo "- - - Key: $key"
+
+    echo "Checking if the user exists"
+    doesUserExist=$(ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "if id -u \"$username\" > /dev/null 2>&1; then echo 'ok'; else echo ''; fi")
+    if [ -n "$doesUserExist" ]; then
+        echo "User $username already exists on memorici.de"
+        continue
+    fi
+
   ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo useradd -m -s /bin/bash $username" 2>/dev/null
   ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo mkdir -p /home/$username/.ssh" 2>/dev/null
   # Add the customer's key to `~/.ssh/authorized_keys` on remote

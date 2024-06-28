@@ -14,7 +14,7 @@ while true; do
 
     # Check that `gce.$username.config` is Included in `~/.ssh/config`
     if ! grep -q "gce.$username.config" ~/.ssh/config; then
-        echo "Please add line 'Include gce.$username.config' at THE BEGINNING of our ~/.ssh/config"
+        echo "Please add line 'Include gce.$username.config' at THE BEGINNING of your ~/.ssh/config"
     fi
 
     sleep 5
