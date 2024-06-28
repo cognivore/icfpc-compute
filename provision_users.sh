@@ -17,6 +17,8 @@ hosts=(instance-20240628-111438)
 # 4. Add `eval "$(direnv hook bash)"` to `~/.bashrc`
 # 5. Copy installer.sh to the host
 for host in "${hosts[@]}"; do
+  ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo apt-get update && sudo apt install curl" 2>/dev/null
+  ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "bash -s" < ./install_nix_over_ssh.sh
   while read -r username key; do
     echo "- - - Adding user $username to $host"
     echo "- - - Key: $key"
@@ -42,17 +44,17 @@ for host in "${hosts[@]}"; do
     # Now we need to enable NOPASSWD for the user
     ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo bash -c 'echo \"$username ALL=(ALL) NOPASSWD:ALL\" >> /etc/sudoers'" 2>/dev/null
 
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "bash -s" < ./install_direnv_over_ssh.sh
     # Finally, since we're using `nix`, add 'eval "$(direnv hook bash)"' to `~/.bashrc`
     ## First check if the hook is already in .bashrc
     is_hook_present=$(ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo bash -c 'grep \"eval \\\"\\\$(direnv hook bash)\\\"\" /home/$username/.bashrc'" 2>/dev/null)
     echo "Is hook present: $is_hook_present"
     if [ -z "$is_hook_present" ]; then
       echo "Adding hook to .bashrc"
-      ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo bash -c 'echo \"eval \\\"\\\$(direnv hook bash)\\\"\" >> /home/$username/.bashrc'" 2>/dev/null
+      ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "bash -c 'echo \"eval \\\"\\\$(direnv hook bash)\\\"\" >> /home/$username/.bashrc'" 2>/dev/null
     fi
 
   done < users
-  rsync -Pave "ssh" installer.sh "$host":
 done
 
 # Finally, add a user without sudo rights to memorici.de
