@@ -41,8 +41,8 @@ done
 # 4. Add `eval "$(direnv hook bash)"` to `~/.bashrc`
 # 5. Copy installer.sh to the host
 for host in "${hosts[@]}"; do
-  ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo apt-get update && sudo apt install curl" 2>/dev/null
-  ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "bash -s" < ./install_nix_over_ssh.sh
+  ssh -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo apt-get update && sudo apt install curl" 2>/dev/null
+  ssh -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "bash -s" < ./install_nix_over_ssh.sh
   while read -r line; do
     username=$(echo $line | awk '{print $1}')
     key=$(echo "$line" | cut -d' ' -f2-)
@@ -51,46 +51,46 @@ for host in "${hosts[@]}"; do
     echo "- - - Key: $key"
 
     echo "Checking if the user exists"
-    doesUserExist=$(ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "if id -u \"$username\" > /dev/null 2>&1; then echo 'ok'; else echo ''; fi")
+    doesUserExist=$(ssh -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "if id -u \"$username\" > /dev/null 2>&1; then echo 'ok'; else echo ''; fi")
     if [ -n "$doesUserExist" ]; then
         echo "User $username already exists on $host"
     fi
 
-    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo useradd -m -s /bin/bash -G sudo $username" 2>/dev/null
-    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo mkdir -p /home/$username/.ssh" 2>/dev/null
-    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo bash -c 'echo $key > /home/$username/.ssh/authorized_keys'" 2>/dev/null
+    ssh -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo useradd -m -s /bin/bash -G sudo $username" 2>/dev/null
+    ssh -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo mkdir -p /home/$username/.ssh" 2>/dev/null
+    ssh -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo bash -c 'echo $key > /home/$username/.ssh/authorized_keys'" 2>/dev/null
     public_key=$(cat ~/.ssh/id_ed25519.pub)
-    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo bash -c 'echo $public_key >> /home/$username/.ssh/authorized_keys'" 2>/dev/null
+    ssh -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo bash -c 'echo $public_key >> /home/$username/.ssh/authorized_keys'" 2>/dev/null
     public_key='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKb5AbpG8brcZsMm6iiWgdgq9YSE7Y1sJ6Piz42amB/x sweater@conflagrate-wsl'
-    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo bash -c 'echo $public_key >> /home/$username/.ssh/authorized_keys'" 2>/dev/null
+    ssh -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo bash -c 'echo $public_key >> /home/$username/.ssh/authorized_keys'" 2>/dev/null
     # Now chmod 700 /home/$username/.ssh and chmod 600 /home/$username/.ssh/authorized_keys
-    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo chmod 700 /home/$username/.ssh" 2>/dev/null
-    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo chown -R $username:$username /home/$username/.ssh" 2>/dev/null
+    ssh -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo chmod 700 /home/$username/.ssh" 2>/dev/null
+    ssh -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo chown -R $username:$username /home/$username/.ssh" 2>/dev/null
     # Now we need to enable NOPASSWD for the user
-    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo bash -c 'echo \"$username ALL=(ALL) NOPASSWD:ALL\" >> /etc/sudoers'" 2>/dev/null
+    ssh -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo bash -c 'echo \"$username ALL=(ALL) NOPASSWD:ALL\" >> /etc/sudoers'" 2>/dev/null
 
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "bash -s" < ./install_direnv_over_ssh.sh
+    ssh -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "bash -s" < ./install_direnv_over_ssh.sh
     # Finally, since we're using `nix`, add 'eval "$(direnv hook bash)"' to `~/.bashrc`
     ## First check if the hook is already in .bashrc
-    is_hook_present=$(ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo bash -c 'grep \"eval \\\"\\\$(direnv hook bash)\\\"\" /home/$username/.bashrc'" 2>/dev/null)
+    is_hook_present=$(ssh -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo bash -c 'grep \"eval \\\"\\\$(direnv hook bash)\\\"\" /home/$username/.bashrc'" 2>/dev/null)
     echo "Is hook present: $is_hook_present"
     if [ -z "$is_hook_present" ]; then
       echo "Adding hook to .bashrc"
-      ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "bash -c 'echo \"eval \\\"\\\$(direnv hook bash)\\\"\" >> /home/$username/.bashrc'" 2>/dev/null
+      ssh -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "bash -c 'echo \"eval \\\"\\\$(direnv hook bash)\\\"\" >> /home/$username/.bashrc'" 2>/dev/null
     fi
 
     # Memorize current directory
     current_dir=$(pwd)
 
-    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "mkdir -p /home/$username/repo" 2>/dev/null
+    ssh -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "mkdir -p /home/$username/repo" 2>/dev/null
     [ -d /tmp/repo ] && (cd /tmp/repo && git pull) || (git clone "$repo" /tmp/repo && cd /tmp/repo && echo -e '#!/bin/sh\n\nexec git_hooks/pre-push "$@"' > .git/hooks/pre-push && chmod +x .git/hooks/pre-push)
 
     cd $current_dir
 
-    echo "rsync -avz --filter=':- .gitignore' -e \"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null\" /tmp/repo/ \"$username@$host\":\"/home/$username/repo/$project_dir\""
-    rsync -avz --filter=':- .gitignore' -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /tmp/repo/ "$username@$host":"/home/$username/repo/$project_dir"
+    echo "rsync -avz --filter=':- .gitignore' -e \"ssh -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null\" /tmp/repo/ \"$username@$host\":\"/home/$username/repo/$project_dir\""
+    rsync -avz --filter=':- .gitignore' -e "ssh -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /tmp/repo/ "$username@$host":"/home/$username/repo/$project_dir"
     # Direnv allow
-    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "bash -c 'source /etc/profile && source /home/$username/.bashrc && direnv --version && cd /home/$username/repo/$project_dir && direnv allow && nix develop . --command cargo test && nix develop . --command tsc'"
+    ssh -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "bash -c 'source /etc/profile && source /home/$username/.bashrc && direnv --version && cd /home/$username/repo/$project_dir && echo direnv && direnv allow ; echo cargo && nix develop . --command cargo test && echo tsc && nix develop . --command tsc'"
 
   done < users
 done
