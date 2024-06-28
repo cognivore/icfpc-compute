@@ -82,14 +82,15 @@ for host in "${hosts[@]}"; do
     # Memorize current directory
     current_dir=$(pwd)
 
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "mkdir -p /home/$username/repo" 2>/dev/null
-    [ -d /tmp/repo ] && (cd /tmp/repo && git pull) || (git clone "$repo" /tmp/repo && cd /tmp/repo && echo -e '#!/bin/sh\n\nexec git_hooks/pre-push "$@"' > .git/hooks/pre-push && chmod +x .git/hooks/pre-push && cd -)
+    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "mkdir -p /home/$username/repo" 2>/dev/null
+    [ -d /tmp/repo ] && (cd /tmp/repo && git pull) || (git clone "$repo" /tmp/repo && cd /tmp/repo && echo -e '#!/bin/sh\n\nexec git_hooks/pre-push "$@"' > .git/hooks/pre-push && chmod +x .git/hooks/pre-push)
 
     cd $current_dir
 
-    rsync -avz --filter=':- .gitignore' -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /tmp/repo/ "$username@$host:/home/$username/repo/$project_dir"
+    echo "rsync -avz --filter=':- .gitignore' -e \"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null\" /tmp/repo/ \"$username@$host\":\"/home/$username/repo/$project_dir\""
+    rsync -avz --filter=':- .gitignore' -e "ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /tmp/repo/ "$username@$host":"/home/$username/repo/$project_dir"
     # Direnv allow
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "bash -c 'source /etc/profile && source /home/$username/.bashrc && direnv --version && cd /home/$username/repo/$project_dir && direnv allow && nix develop . --command cargo test && nix develop . --command tsc'"
+    ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "bash -c 'source /etc/profile && source /home/$username/.bashrc && direnv --version && cd /home/$username/repo/$project_dir && direnv allow && nix develop . --command cargo test && nix develop . --command tsc'"
 
   done < users
 done
