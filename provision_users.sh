@@ -17,7 +17,7 @@
 # icfpc-komodo     europe-north1-a  n2d-highcpu-128  true         10.166.0.7                TERMINATED
 
 # hosts=(icfpc-32-1 icfpc-32-2 icfpc-hel icfpc-komodo icfpc-leviathan)
-hosts=(icfpc-32-1)
+hosts=(icfpc-hel icfpc-komodo icfpc-leviathan icfpc-32-2)
 
 repo="git@github.com:Vlad-Shcherbina/icfpc2024-tbd.git"
 project_dir="icfpc2024-tbd"
@@ -88,7 +88,7 @@ for host in "${hosts[@]}"; do
     cd $current_dir
 
     echo "rsync -avz --filter=':- .gitignore' -e \"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null\" /tmp/repo/ \"$username@$host\":\"/home/$username/repo/$project_dir\""
-    rsync -avz --filter=':- .gitignore' -e "ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /tmp/repo/ "$username@$host":"/home/$username/repo/$project_dir"
+    rsync -avz --filter=':- .gitignore' -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /tmp/repo/ "$username@$host":"/home/$username/repo/$project_dir"
     # Direnv allow
     ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "bash -c 'source /etc/profile && source /home/$username/.bashrc && direnv --version && cd /home/$username/repo/$project_dir && direnv allow && nix develop . --command cargo test && nix develop . --command tsc'"
 
