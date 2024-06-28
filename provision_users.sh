@@ -16,10 +16,23 @@
 # icfpc-32-2       europe-north1-a  n2d-highcpu-32   true         10.166.0.5                TERMINATED
 # icfpc-komodo     europe-north1-a  n2d-highcpu-128  true         10.166.0.7                TERMINATED
 
-hosts=(icfpc-32-1 icfpc-32-2 icfpc-hel icfpc-komodo icfpc-leviathan)
+# hosts=(icfpc-32-1 icfpc-32-2 icfpc-hel icfpc-komodo icfpc-leviathan)
+hosts=(icfpc-32-1)
 
 repo="git@github.com:Vlad-Shcherbina/icfpc2024-tbd.git"
 project_dir="icfpc2024-tbd"
+
+for host in "${hosts[@]}"; do
+    echo $host
+    while read -r line; do
+        username=$(echo $line | awk '{print $1}')
+        key=$(echo "$line" | cut -d' ' -f2-)
+        echo "Username: $username"
+        echo "Key: $key"
+    done < users
+done
+
+# exit 1
 
 # For each host and for each user do the following:
 # 1. Create user `sudo useradd -m -s /bin/bash -G sudo <username>`
@@ -30,7 +43,10 @@ project_dir="icfpc2024-tbd"
 for host in "${hosts[@]}"; do
   ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo apt-get update && sudo apt install curl" 2>/dev/null
   ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "bash -s" < ./install_nix_over_ssh.sh
-  while read -r username key; do
+  while read -r line; do
+    username=$(echo $line | awk '{print $1}')
+    key=$(echo "$line" | cut -d' ' -f2-)
+
     echo "- - - Adding user $username to $host"
     echo "- - - Key: $key"
 
@@ -38,7 +54,6 @@ for host in "${hosts[@]}"; do
     doesUserExist=$(ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "if id -u \"$username\" > /dev/null 2>&1; then echo 'ok'; else echo ''; fi")
     if [ -n "$doesUserExist" ]; then
         echo "User $username already exists on $host"
-        # continue
     fi
 
     ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "sudo useradd -m -s /bin/bash -G sudo $username" 2>/dev/null
@@ -64,7 +79,14 @@ for host in "${hosts[@]}"; do
       ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "bash -c 'echo \"eval \\\"\\\$(direnv hook bash)\\\"\" >> /home/$username/.bashrc'" 2>/dev/null
     fi
 
+    # Memorize current directory
+    current_dir=$(pwd)
+
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "mkdir -p /home/$username/repo" 2>/dev/null
     [ -d /tmp/repo ] && (cd /tmp/repo && git pull) || (git clone "$repo" /tmp/repo && cd /tmp/repo && echo -e '#!/bin/sh\n\nexec git_hooks/pre-push "$@"' > .git/hooks/pre-push && chmod +x .git/hooks/pre-push && cd -)
+
+    cd $current_dir
+
     rsync -avz --filter=':- .gitignore' -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /tmp/repo/ "$username@$host:/home/$username/repo/$project_dir"
     # Direnv allow
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$username@$host" "bash -c 'source /etc/profile && source /home/$username/.bashrc && direnv --version && cd /home/$username/repo/$project_dir && direnv allow && nix develop . --command cargo test && nix develop . --command tsc'"
