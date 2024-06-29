@@ -9,12 +9,21 @@
 # icfpc-32-2       europe-north1-a  n2d-highcpu-32   true         10.166.0.5                TERMINATED
 # icfpc-komodo     europe-north1-a  n2d-highcpu-128  true         10.166.0.7                TERMINATED
 
-# Start all instances
-gcloud compute instances start icfpc-hel --zone us-central1-a
-gcloud compute instances start icfpc-leviathan --zone us-central1-a
-gcloud compute instances start icfpc-32-1 --zone europe-north1-a
-gcloud compute instances start icfpc-32-2 --zone europe-north1-a
-gcloud compute instances start icfpc-komodo --zone europe-north1-a
+
+if [ -z "$1" ]; then
+    # Start all instances
+    gcloud compute instances start icfpc-hel --zone us-central1-a
+    gcloud compute instances start icfpc-leviathan --zone us-central1-a
+    gcloud compute instances start icfpc-32-1 --zone europe-north1-a
+    gcloud compute instances start icfpc-32-2 --zone europe-north1-a
+    gcloud compute instances start icfpc-komodo --zone europe-north1-a
+fi
+
+# If we're running only small ones, limit ourselves to 32-core instances
+if [ "$1" == "--small" ]; then
+    gcloud compute instances start icfpc-32-1 --zone europe-north1-a
+    gcloud compute instances start icfpc-32-2 --zone europe-north1-a
+fi
 
 gce_user="$(cat ./gce_user)"
 ./mk_gce "$gce_user"
@@ -51,7 +60,9 @@ while read -r username ssh_key; do
     # Now chmod 700 /home/$username/.ssh and chmod 600 /home/$username/.ssh/authorized_keys
     ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo chmod 700 /home/$username/.ssh" 2>/dev/null
     ssh -n -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null memorici.de "sudo chown -R $username:$username /home/$username/.ssh" 2>/dev/null
+done < users
 
+while read -r username ssh_key; do
     ./mk_gce "$username"
     rsync -Pave ssh "gce.$username.config" $username@memorici.de:
 done < users
