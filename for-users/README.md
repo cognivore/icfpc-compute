@@ -3,8 +3,8 @@
 Compute allows you to run cargo commands like this:
 
 ```
-./run_at icfpc-32-1 \
-  'cargo run --release expr_eval "B! L! B$ v! B$ v! B$ v! B$ v! B$ v! B$ v! B$ v! B$ v! B$ v! B$ v! B$ v! B$ v! B$ v! B$ v! B$ v! B$ v! B$ v! B$ v! B$ v! B$ v! B$ v! B$ v! I\" L! B+ B+ v! v! B+ v! v!"'
+echo 'B$ L! B$ v! I" L! B+ B+ v! v! B+ v! v!' | \
+  ./run_at icfpc-32-1 'cargo run --release expr_eval'
 ```
 
 ## How do I gain access to the machines?
