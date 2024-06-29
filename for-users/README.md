@@ -1,6 +1,6 @@
 # For user (2024)
 
-Compute allows you to run cargo commands like this:
+Compute allows you to run cargo commands from the main repository **on powerful remote machines** like this:
 
 ```
 echo 'B$ L! B$ v! I" L! B+ B+ v! v! B+ v! v!' | \
