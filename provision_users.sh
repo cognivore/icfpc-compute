@@ -19,11 +19,16 @@
 # hosts=(icfpc-32-1 icfpc-32-2 icfpc-hel icfpc-komodo icfpc-leviathan)
 hosts=(icfpc-hel icfpc-komodo icfpc-leviathan icfpc-32-2)
 
+if [ "$1" == "--small" ]; then
+    hosts=(icfpc-32-1 icfpc-32-2)
+fi
+
 repo="git@github.com:Vlad-Shcherbina/icfpc2024-tbd.git"
 project_dir="icfpc2024-tbd"
 
 for host in "${hosts[@]}"; do
     echo $host
+    # TODO: Can be just: `while read -r username key; do`
     while read -r line; do
         username=$(echo $line | awk '{print $1}')
         key=$(echo "$line" | cut -d' ' -f2-)
