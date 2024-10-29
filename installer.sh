@@ -68,7 +68,8 @@ function doInstallHM() {
       green "Installing home-manager..."
       installing_hm=true
       nix profile install nixpkgs#hello
-      nix run github:nix-community/home-manager/master -- init
+      # nix run github:nix-community/home-manager/master -- init
+      nix run home-manager/master -- init --switch
     fi
   else
     green "Home-manager is already installed... Continuing..."
